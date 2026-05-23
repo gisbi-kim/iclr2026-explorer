@@ -83,7 +83,9 @@ label{display:block;font-size:12px;color:var(--muted);margin:11px 0 5px} input,s
 const DATA = JSON.parse(document.getElementById('dataset').textContent);
 const PAPERS = DATA.papers;
 const S = DATA.summary;
-let page = 0, pageSize = 500;
+const DEFAULT_SORT = 'rating';
+const DEFAULT_PAGE_SIZE = 500;
+let page = 0, pageSize = DEFAULT_PAGE_SIZE;
 let expandedCountries = false, expandedInstitutions = false;
 const $ = id => document.getElementById(id);
 const uniq = arr => [...new Set(arr.filter(Boolean))].sort((a,b)=>a.localeCompare(b));
@@ -120,9 +122,43 @@ function setFilter(field, value){
 function setQuery(value){ $('q').value = $('q').value === value ? '' : value; page=0; render(); }
 globalThis.setFilter = setFilter;
 globalThis.setQuery = setQuery;
-function resetAll(){ ['q','status','area','country','sort','codeFilter','source'].forEach(id=>$(id).value=''); $('sort').value='rating'; page=0; render(); window.scrollTo({top:0, behavior:'smooth'}); }
+function resetAll(){ ['q','status','area','country','sort','codeFilter','source'].forEach(id=>$(id).value=''); $('sort').value=DEFAULT_SORT; $('pageSize').value=String(DEFAULT_PAGE_SIZE); page=0; render(); window.scrollTo({top:0, behavior:'smooth'}); }
 function chips(){
   $('keywordChips').innerHTML = S.keyword_counts.slice(0,80).map(k=>`<span class="chip" data-query="${attr(k.name)}">${k.name} · ${fmt(k.count)}</span>`).join('');
+}
+function setSelectIfValid(id, value){
+  if (!value) return;
+  const el = $(id);
+  if ([...el.options].some(o => o.value === value)) el.value = value;
+}
+function restoreStateFromUrl(){
+  const params = new URLSearchParams(window.location.search);
+  $('q').value = params.get('q') || '';
+  setSelectIfValid('status', params.get('status'));
+  setSelectIfValid('area', params.get('area'));
+  setSelectIfValid('country', params.get('country'));
+  setSelectIfValid('codeFilter', params.get('code'));
+  setSelectIfValid('source', params.get('source'));
+  setSelectIfValid('sort', params.get('sort') || DEFAULT_SORT);
+  setSelectIfValid('pageSize', params.get('pageSize') || String(DEFAULT_PAGE_SIZE));
+  pageSize = Number($('pageSize').value || DEFAULT_PAGE_SIZE);
+  const urlPage = Number(params.get('page') || 1);
+  page = Number.isFinite(urlPage) && urlPage > 0 ? urlPage - 1 : 0;
+}
+function syncUrl(){
+  const params = new URLSearchParams();
+  if ($('q').value.trim()) params.set('q', $('q').value.trim());
+  if ($('status').value) params.set('status', $('status').value);
+  if ($('area').value) params.set('area', $('area').value);
+  if ($('country').value) params.set('country', $('country').value);
+  if ($('codeFilter').value) params.set('code', $('codeFilter').value);
+  if ($('source').value) params.set('source', $('source').value);
+  if ($('sort').value && $('sort').value !== DEFAULT_SORT) params.set('sort', $('sort').value);
+  if (Number($('pageSize').value) !== DEFAULT_PAGE_SIZE) params.set('pageSize', $('pageSize').value);
+  if (page > 0) params.set('page', String(page + 1));
+  const query = params.toString();
+  const nextUrl = query ? `${window.location.pathname}?${query}` : window.location.pathname;
+  window.history.replaceState(null, '', nextUrl);
 }
 function updateActiveFilters(){
   const active = {
@@ -176,6 +212,7 @@ function render(){
   $('papers').innerHTML = shown.map(paperHtml).join('');
   $('prev').disabled = page===0; $('next').disabled = page>=maxPage;
   updateActiveFilters();
+  syncUrl();
 }
 function downloadJson(){
   const blob = new Blob([JSON.stringify({summary:S, papers:filtered()}, null, 2)], {type:'application/json'});
@@ -184,6 +221,7 @@ function downloadJson(){
 function init(){
   renderStats(); bars('statusBars', S.status_counts, 'status', 8); bars('areaBars', S.area_counts, 'area', 12); renderExpandableBars(); chips();
   addOptions('status', uniq(PAPERS.map(p=>p.status))); addOptions('area', uniq(PAPERS.map(p=>p.primary_area))); addOptions('country', uniq(PAPERS.flatMap(p=>p.countries).filter(c=>c!=='Other'))); addOptions('source', uniq(PAPERS.map(p=>p.affiliation_source)));
+  restoreStateFromUrl();
   document.addEventListener('click', e => {
     const author = e.target.closest('.author-link[data-author]');
     if (author) {
@@ -218,6 +256,7 @@ function init(){
   });
   ['q','status','area','country','sort','codeFilter','source','pageSize'].forEach(id=>$(id).addEventListener('input',()=>{page=0;render();}));
   $('prev').onclick=()=>{page--;render();}; $('next').onclick=()=>{page++;render();};
+  window.addEventListener('popstate', () => { restoreStateFromUrl(); render(); });
   render();
 }
 init();

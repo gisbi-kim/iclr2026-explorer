@@ -25,6 +25,7 @@ Open this file in a browser:
 - Search title, author, institution, country, primary area, keyword, and abstract
 - Filter by decision, primary area, country, affiliation source, and resource-link availability
 - Sort by rating, citation count, title, or author count
+- Share filtered states through the URL query string
 - Expand paper cards for abstract, institutions, keywords, OpenReview, PDF, and resource links
 - Download the filtered result set as JSON
 
