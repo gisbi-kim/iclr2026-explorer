@@ -2,6 +2,10 @@
 
 Local static explorer for ICLR 2026 accepted papers.
 
+Live demo:
+
+- https://gisbi-kim.github.io/iclr2026-explorer/
+
 Open this file in a browser:
 
 - `output/iclr2026_explorer.html`
