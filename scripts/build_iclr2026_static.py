@@ -171,6 +171,35 @@ def number(value, default=None):
         return default
 
 
+LATEX_NAME_REPLACEMENTS = {
+    r"{\l}": "l",
+    r"{\L}": "L",
+    r"\'": "",
+    r"\`": "",
+    r"\^": "",
+    r"\"": "",
+    r"\~": "",
+    r"\=": "",
+    r"\.": "",
+    r"\u": "",
+    r"\v": "",
+    r"\H": "",
+    r"\c": "",
+    r"\k": "",
+    r"\r": "",
+    r"\b": "",
+    r"\d": "",
+}
+
+
+def clean_author_name(name: str) -> str:
+    name = html.unescape(name or "")
+    for src, dst in LATEX_NAME_REPLACEMENTS.items():
+        name = name.replace(src, dst)
+    name = re.sub(r"[{}]", "", name)
+    return re.sub(r"\s+", " ", name).strip()
+
+
 def bibtex_authors(bibtex: str) -> list[str]:
     if not bibtex:
         return []
@@ -178,7 +207,17 @@ def bibtex_authors(bibtex: str) -> list[str]:
     if not m:
         return []
     raw = re.sub(r"\s+", " ", m.group(1)).strip()
-    return [a.strip() for a in raw.split(" and ") if a.strip()]
+    return [a for a in (clean_author_name(x) for x in raw.split(" and ")) if a]
+
+
+def best_authors(csv_authors: list[str], pc: dict) -> list[str]:
+    bib_authors = bibtex_authors(pc.get("bibtex", ""))
+    if bib_authors:
+        return bib_authors
+    pc_authors = [a for a in (clean_author_name(x) for x in split_field(pc.get("author"))) if a]
+    if pc_authors:
+        return pc_authors
+    return [a for a in (clean_author_name(x) for x in csv_authors) if a]
 
 
 def load_papercopilot() -> dict[str, dict]:
@@ -243,7 +282,7 @@ def build_papers() -> list[dict]:
                 or pc.get("github", "")
                 or pc.get("project", "")
             )
-            authors = split_field(row.get("Authors")) or split_field(pc.get("author")) or bibtex_authors(pc.get("bibtex", ""))
+            authors = best_authors(split_field(row.get("Authors")), pc)
             institutions = canonical_institutions(
                 split_field(row.get("Institutions_canonical"))
                 or split_field(row.get("Institutions"))
