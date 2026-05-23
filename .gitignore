@@ -1,0 +1,6 @@
+__pycache__/
+*.py[cod]
+
+# Large local source snapshots are kept locally. The public repo hosts the
+# normalized static artifacts and documents the source URLs in README.md.
+raw/iclr2026/papercopilot_iclr2026.json
